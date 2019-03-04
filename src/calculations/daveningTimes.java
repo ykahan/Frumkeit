@@ -20,7 +20,6 @@ class daveningTimes {
 		timeis = "https://time.is/";
 		driver = Repository.getChromeDriver();
 		Repository.setup(driver);
-		System.out.println("setup complete");
 	}
 
 	@AfterAll
@@ -31,17 +30,79 @@ class daveningTimes {
 	@Test
 	void test() {
 		driver.get(timeis);
-		System.out.println("site acquired");
 		String[] infoParts = getInfo();
+		driver.quit();
 		String sunrise = processInfo(infoParts[1]);
 		String sunset = processInfo(infoParts[3]);
-		String hoursInDay = processInfo(infoParts[4]);
-		String minutesLeftOver = processInfo(infoParts[5]);
+		int minutesInDayShort = calculateMinInRange(sunrise, sunset);
 		String[] sunriseParts = sunrise.split(":");
 		String[] sunsetParts = sunset.split(":");
 		String alosHashachar = getAlos(sunriseParts);
 		String tzesHakochavim = getTzes(sunsetParts);
-		printBasicInfo(sunrise, sunset, alosHashachar, tzesHakochavim, hoursInDay, minutesLeftOver);
+		int minutesInDayLong = calculateMinInRange(alosHashachar, tzesHakochavim);
+		String[] timesShort = calculateTimes(minutesInDayShort, sunrise);
+		String[] timesLong = calculateTimes(minutesInDayLong, alosHashachar);
+		System.out.println("Based on sunrise (" + sunrise + ") and sunset (" + sunset +"):\n");
+		printTimes(timesShort);
+		for(int i = 0; i < 100; i++) {
+			System.out.print("-");
+		}
+		System.out.println("\nBased on alos (" + alosHashachar + ") and tzeis ("+ tzesHakochavim + "):\n");
+		printTimes(timesLong);
+	}
+
+	private void printTimes(String[] times) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Sof zman krias shema is " + times[0] + ".\n");
+		sb.append("Sof zman shacharis is " + times[1] + ".\n");
+		sb.append("Chatzos is " + times[2] + ".\n");
+		sb.append("Mincha gedolah is " + times[3] + ".\n");
+		sb.append("Mincha ketanah is " + times[4] + ".\n");
+		sb.append("Plag hamincha is " + times[5]+ ".\n");
+		System.out.println(sb.toString());
+	}
+
+	private String[] calculateTimes(int minutes, String start) {
+		String[] startParts = start.split(":");
+		int minutesTillStart = calculateMinFromMidnight(startParts);
+		double kriasShemaDouble = new Double(minutes) / 4 + minutesTillStart;
+		double tefillahDouble = new Double(minutes) / 3 + minutesTillStart;
+		double chatzosDouble = new Double(minutes) / 2 + minutesTillStart;
+		double minchaDouble = new Double(minutes) / 12 * 6.5 + minutesTillStart;
+		double minchaKetanaDouble = new Double(minutes) / 12 * 9.5 + minutesTillStart;
+		double plagDouble = new Double(minutes) / 12 * 10.75 + minutesTillStart;
+		String kriasShemaString = getTime(kriasShemaDouble);
+		String tefillahString = getTime(tefillahDouble);
+		String chatzosString = getTime(chatzosDouble);
+		String minchaString = getTime(minchaDouble);
+		String minchaKetanaString = getTime(minchaKetanaDouble);
+		String plagString = getTime(plagDouble);
+		String[] times = 
+			{kriasShemaString, tefillahString, chatzosString, minchaString, minchaKetanaString, plagString};
+		return times;
+	}
+
+	private String getTime(double minutesPassed) {
+		int hours = (int) (minutesPassed / 60);
+		int minutes = (int) (minutesPassed % 60);
+		String time = String.valueOf(hours) + ":" + String.valueOf(minutes);
+		return time;
+	}
+
+	private int calculateMinInRange(String start, String finish) {
+		String[] startParts = start.split(":");
+		String[] finishParts = finish.split(":");
+		int startMinutes = calculateMinFromMidnight(startParts);
+		int finishMinutes = calculateMinFromMidnight(finishParts);
+		int totalMinutes = finishMinutes - startMinutes;
+		return totalMinutes;
+	}
+
+	private int calculateMinFromMidnight(String[] parts) {
+		int hours = Integer.parseInt(parts[0]);
+		int minutes = Integer.parseInt(parts[1]);
+		int totalMinutes = (hours * 60) + minutes;
+		return totalMinutes;
 	}
 
 	private String getTzes(String[] sunsetParts) {
@@ -84,6 +145,7 @@ class daveningTimes {
 
 	private String processInfo(String string) {
 		string = string.replaceAll("[^0-9:]", "");
+		if(string.startsWith("0")) string = string.substring(1);
 		return string;
 	}
 
